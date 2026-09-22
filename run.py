@@ -1,14 +1,36 @@
-"""Entry point: run the walk-forward backtest and print the results table."""
+"""Entry point: run the walk-forward backtest and print the results."""
 
 import pandas as pd
 
 from src.backtest import run_backtest
-from src.metrics import directional_accuracy, mae, relative_mae, rmse
 from src.models import MODELS
+from src.report import plot_predictions, results_table, yearly_table
 
 DATA_PATH = "data/btc_daily.csv"
 WARMUP = 30  # per D-012
-BASELINE = "Naive"
+CHART_PATH = "output/predictions.png"
+
+
+def _format_results_table(table: pd.DataFrame) -> pd.DataFrame:
+    formatted = table[["Model"]].copy()
+    formatted["MAE"] = table["MAE"].map(lambda v: f"{v:.2f}")
+    formatted["RMSE"] = table["RMSE"].map(lambda v: f"{v:.2f}")
+    formatted["Directional accuracy"] = table["Directional accuracy"].map(
+        lambda v: "N/A" if pd.isna(v) else f"{v * 100:.1f}%"
+    )
+    formatted["Relative MAE"] = table["Relative MAE"].map(lambda v: f"{v:.3f}")
+    formatted["Random walk"] = table["Random walk"].map(lambda v: f"{v:.3f}")
+    return formatted
+
+
+def _format_yearly_table(table: pd.DataFrame) -> pd.DataFrame:
+    formatted = pd.DataFrame(index=table.index)
+    for column in table.columns:
+        if column == "Test days":
+            formatted[column] = table[column]
+        else:
+            formatted[column] = table[column].map(lambda v: f"{v:.3f}")
+    return formatted
 
 
 def main():
@@ -21,23 +43,12 @@ def main():
         f"Test days: {len(results)} "
         f"({results.index.min().date()} to {results.index.max().date()})"
     )
+    print(_format_results_table(results_table(results)).to_string(index=False))
+    print()
+    print(_format_yearly_table(yearly_table(results)).to_string())
 
-    baseline_pred = results[BASELINE]
-    rows = []
-    for name in MODELS:
-        pred = results[name]
-        da = directional_accuracy(results["prev"], results["actual"], pred)
-        rows.append(
-            {
-                "Model": name,
-                "MAE": f"{mae(results['actual'], pred):.2f}",
-                "RMSE": f"{rmse(results['actual'], pred):.2f}",
-                "Directional accuracy": "N/A" if da is None else f"{da * 100:.1f}%",
-                "Relative MAE": f"{relative_mae(results['actual'], pred, baseline_pred):.3f}",
-            }
-        )
-
-    print(pd.DataFrame(rows).to_string(index=False))
+    plot_predictions(results, CHART_PATH)
+    print(f"\nChart written to {CHART_PATH}")
 
 
 if __name__ == "__main__":

@@ -224,4 +224,48 @@ attached to a working engine is worth less than the engine by itself.
 
 ---
 
+## D-014 · The random-walk expectation is reported next to the observed result
+
+**Date:** 2026-09-22
+
+**Decision:** The results table carries a column giving the relative MAE that a
+pure random walk predicts for each model, alongside the observed value.
+
+**Alternatives:** Reporting only the observed figures and describing the models as
+"worse than the baseline".
+
+**Why:** Each model here is a fixed weighted average of past prices, so under a
+random walk its error variance follows from its weights alone and can be derived
+without touching the data. For N = 7 the derivation gives 1.690 for the moving
+average and 1.309 for the linear trend; the backtest produced 1.716 and 1.362.
+Agreement within four per cent turns the result from "these methods happened to
+lose" into "these methods lose by the amount the random-walk model requires, and
+the series is not distinguishable from one". Printing the expectation beside the
+observation is what lets a reader check that claim rather than take it.
+
+**Consequence:** the constants are specific to N = 7. If D-011 is ever revised
+they must be re-derived, so the code asserts N == 7 where they are used.
+
+---
+
+## D-015 · Uncertainty reported with a moving-block bootstrap
+
+**Date:** 2026-09-22
+
+**Decision:** Confidence intervals on relative MAE come from a 20-day moving-block
+bootstrap, reported alongside the point estimate.
+
+**Alternatives:** Reporting point estimates alone; an i.i.d. day-level bootstrap.
+
+**Why:** Point estimates invite reading noise as signal — the moving average's
+2025 figure sits 9% below its 2024 figure, and without intervals that looks like a
+regime effect rather than the sampling variation it is. Blocks were chosen over
+i.i.d. resampling because volatility clusters in daily price series and shuffling
+single days destroys that structure. In the event the two methods agreed closely,
+which is itself informative: relative MAE is a ratio, so a volatile day inflates
+numerator and denominator together and the statistic is largely insensitive to the
+clustering. That was verified rather than assumed.
+
+---
+
 ## D-0NN · *(next decision goes here)*
