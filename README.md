@@ -3,7 +3,7 @@
 A tool for evaluating time-series forecasting methods against a naive baseline,
 using walk-forward backtesting.
 
-**Status:** in progress — see [Scope](#scope) for what is and is not built yet.
+**Status:** v1 complete — see [Findings](#findings).
 
 ---
 
@@ -123,6 +123,8 @@ pytest
 ```
 
 ## Findings
+
+![Actual versus predicted, last 90 test days](docs/predictions.png)
 
 **Neither method beats the naive baseline — and both lose by close to the amount
 a random walk requires.**
