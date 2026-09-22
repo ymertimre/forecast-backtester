@@ -43,6 +43,26 @@ filled window.
 
 ---
 
+## D-013 · Directional accuracy is undefined for the naive baseline
+
+**Date:** 2026-09-22
+
+**Decision:** `directional_accuracy` returns `None` when every prediction equals
+the last observed value, and the report prints `N/A` for that cell.
+
+**Alternatives:** Reporting the computed 0%, or dropping zero-change days from the
+denominator.
+
+**Why:** The naive model predicts no change, so its predicted direction is neither
+up nor down and never matches the realised one. The computed figure is therefore
+0% for a model that makes no directional claim at all — a number that reads as
+catastrophic next to the same model topping the MAE column. Dropping zero-change
+days is not an option either: for the naive model that is every day, leaving an
+empty denominator. Marking the metric undefined is the only reading that does not
+mislead.
+
+---
+
 ## D-0NN · *(next decision goes here)*
 ```
 
