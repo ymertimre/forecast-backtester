@@ -10,8 +10,40 @@ this, and it is what reminds me six months from now.
 **Format**
 
 ```
-## D-00N · Title
-Date · Decision · Alternatives considered · Why
+## D-011 · N = 7, chosen a priori rather than searched
+
+**Date:** 2026-09-22
+
+**Decision:** The window for the moving average and the linear trend is 7 days.
+
+**Alternatives:** Searching N over a grid and keeping the best performer.
+
+**Why:** Selecting N by its backtest score means choosing a parameter on the same
+data used to report performance, which turns an out-of-sample result back into an
+in-sample one. Seven is fixed by reasoning instead: it is the only natural period
+in a daily series. A longer window such as 30 would lag so far behind a trending
+series that its loss is guaranteed before the test runs, which makes the
+comparison uninformative rather than honest.
+
+---
+
+## D-012 · W = 30 warm-up
+
+**Date:** 2026-09-22
+
+**Decision:** The first 30 observations seed the models and are excluded from all
+error statistics.
+
+**Alternatives:** W = N, the technical minimum.
+
+**Why:** N is enough for a prediction to be defined, but fixing W above it keeps
+the evaluation window identical if N is ever changed, so two runs stay comparable.
+Thirty days costs 3% of the series and removes any prediction made on a partially
+filled window.
+
+---
+
+## D-0NN · *(next decision goes here)*
 ```
 
 ---
