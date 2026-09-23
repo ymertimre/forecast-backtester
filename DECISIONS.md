@@ -285,4 +285,73 @@ refreshing the data snapshot.
 
 ---
 
+## D-017 · Target series for v2: absolute daily log return
+
+**Date:** 2026-09-23
+
+**Decision:** The series volatility models are evaluated against is
+`a_t = |ln(P_t / P_{t-1})|`, the absolute daily log return.
+
+**Alternatives:** Dollar volatility (the absolute price change).
+
+**Why:** Returns are scale-free; dollar volatility would mostly track the price
+level rather than measuring volatility itself.
+
+---
+
+## D-018 · Baseline for v2: expanding-window mean of |r|
+
+**Date:** 2026-09-23
+
+**Decision:** The v2 baseline is the expanding-window mean of `a` — the mean of
+all `a` up to and including day t.
+
+**Alternatives:** Lag-1 (yesterday's `a_t` as today's prediction).
+
+**Why:** "Do nothing" for volatility means assuming a constant long-run level,
+which is what the expanding mean encodes. Lag-1 is not the baseline here — it
+assumes persistence, which is itself a claim about the process, so it is a
+competing model rather than a "do nothing" comparison.
+
+---
+
+## D-019 · Competing models for v2: lag-1, 20-day moving average, EWMA(λ = 0.94)
+
+**Date:** 2026-09-23
+
+**Decision:** Three competing models, all averaging `a` itself rather than `r²`:
+lag-1, a 20-day moving average, and an EWMA with λ = 0.94.
+
+**Alternatives:** EWMA on `r²` (the RiskMetrics variance estimator).
+
+**Why:** All four models — baseline included — compute the same statistic and
+differ only in memory length, which keeps the comparison like-for-like. EWMA on
+`r²` estimates σ, which exceeds `E|r|` by about 25% under normality and would
+bias the comparison in its favour. λ = 0.94 (the RiskMetrics convention) and the
+20-day window are fixed a priori rather than searched, for the same reason N was
+fixed in D-011.
+
+---
+
+## D-020 · Headline metric for v2 unchanged: relative MAE
+
+**Date:** 2026-09-23
+
+**Decision:** The headline metric stays relative MAE, with the expanding-window
+mean (D-018) as the denominator.
+
+**Alternatives:** None considered; re-deriving a new headline for v2 would make
+it harder to compare against the price-forecasting result in D-007.
+
+**Why:** Keeping the same ratio-based headline lets the volatility result be read
+the same way as the price result.
+
+**Known limitation:** The MAE-optimal forecast is the conditional median, and
+every v2 model here is mean-type, so all of them share the same bias — the
+relative comparison stays fair even though no individual model is MAE-optimal.
+Separately, `|r|` is a very noisy proxy for true volatility, so even a good model
+will show low explanatory power. Both points go into the README.
+
+---
+
 ## D-0NN · *(next decision goes here)*
