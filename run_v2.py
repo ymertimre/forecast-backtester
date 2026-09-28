@@ -4,6 +4,7 @@ import pandas as pd
 
 from src.backtest import run_backtest
 from src.metrics import mae, relative_mae
+from src.uncertainty import bootstrap_relative_mae
 from src.vol_models import VOL_MODELS
 from src.volatility import abs_log_returns
 
@@ -65,6 +66,14 @@ def main():
         for name in VOL_MODELS
     ]
     print(pd.DataFrame(rows).to_string(index=False))
+
+    print(f"\nRelative MAE vs {BASELINE}, 95% moving-block bootstrap interval (D-015):")
+    for name in VOL_MODELS:
+        if name == BASELINE:
+            continue
+        point = relative_mae(results["actual"], results[name], baseline_pred)
+        low, high = bootstrap_relative_mae(results["actual"], results[name], baseline_pred)
+        print(f"  {name}: {point:.3f} [{low:.3f}, {high:.3f}]")
 
 
 if __name__ == "__main__":
