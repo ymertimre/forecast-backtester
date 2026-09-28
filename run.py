@@ -3,8 +3,11 @@
 import pandas as pd
 
 from src.backtest import run_backtest
+from src.metrics import relative_mae
 from src.models import MODELS
 from src.report import plot_predictions, results_table, yearly_table
+from src.report import BASELINE
+from src.uncertainty import bootstrap_relative_mae
 
 DATA_PATH = "data/btc_daily.csv"
 WARMUP = 30  # per D-012
@@ -49,6 +52,15 @@ def main():
 
     plot_predictions(results, CHART_PATH)
     print(f"\nChart written to {CHART_PATH}")
+
+    print(f"\nRelative MAE vs {BASELINE}, 95% moving-block bootstrap interval (D-015):")
+    baseline_pred = results[BASELINE]
+    for name in MODELS:
+        if name == BASELINE:
+            continue
+        point = relative_mae(results["actual"], results[name], baseline_pred)
+        low, high = bootstrap_relative_mae(results["actual"], results[name], baseline_pred)
+        print(f"  {name}: {point:.3f} [{low:.3f}, {high:.3f}]")
 
 
 if __name__ == "__main__":
