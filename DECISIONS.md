@@ -354,4 +354,89 @@ will show low explanatory power. Both points go into the README.
 
 ---
 
+## D-021 · Bootstrap implementation (completes D-015)
+
+**Date:** 2026-09-28
+
+**Decision:** A paired moving-block bootstrap, implemented in `src/uncertainty.py`.
+Each resample draws one index array and applies it to both the model and the
+baseline errors. Blocks are 20 days long, block starts are drawn uniformly from
+0..n−20, and the blocks are concatenated and truncated to length n. 2,000
+resamples, seed 42, 95% percentile interval.
+
+**Alternatives:** Resampling model and baseline errors independently.
+
+**Why:** Relative MAE is a ratio of two errors measured on the same days. Pairing
+keeps each volatile day in the numerator and the denominator together, which is
+the property D-015 relies on; independent draws would mix different days into the
+two halves of the ratio and widen the interval with noise the statistic does not
+have.
+
+**Note:** The v1 README intervals had no code in the repository. This
+implementation reproduced them within 0.005 (moving average [1.604, 1.831], linear
+trend [1.307, 1.421]), and `run.py` now prints them.
+
+---
+
+## D-022 · The v2a result is reported as is
+
+**Date:** 2026-09-28
+
+**Decision:** The v2a result, with `|r|` as the target, stands as computed: EWMA
+0.977 [0.941, 1.008], 20-day moving average 0.992 [0.950, 1.031], lag-1 1.274
+[1.200, 1.336]. After seeing it, the metric, λ, the window, the confidence level
+and the data period are not changed.
+
+**Alternatives:** Adjusting any of those settings until an interval excludes 1.
+
+**Why:** Changing a setting after seeing the result turns an out-of-sample test
+into a search, for the same reason N was fixed in D-011. Any follow-up analysis is
+added alongside this result and never replaces it.
+
+---
+
+## D-023 · v2b target: daily realized volatility, specified before the hourly data is fetched
+
+**Date:** 2026-09-28
+
+**Decision:** The v2b target is `RV_t = sqrt(Σ r_{t,h}²)` over the 24 hourly log
+returns of day t. The first hourly return of day t is taken against the last
+hourly close of day t−1, so the hourly returns of a day sum to that day's daily
+log return. Data: Binance BTCUSDT 1h klines, UTC, frozen as
+`data/btc_hourly.csv` (D-004).
+
+**Alternatives:** Keeping `|r|` as the only target (v2a).
+
+**Why:** `|r|` is a very noisy proxy for volatility, and that was recorded as a
+known limitation in D-020 before the v2a result was seen. Andersen & Bollerslev
+(1998) show that with daily returns as the target, good volatility models look
+poor, while with intraday realized volatility they are clearly accurate.
+
+**Checks before any model is run:** (1) each day's last hourly close equals that
+day's close in `data/btc_daily.csv`; (2) each day's hourly log returns sum to its
+daily log return; (3) no hours are missing. If hours are missing, the count is
+reported and a handling rule is decided before any result is computed.
+
+---
+
+## D-024 · v2b uses the v2a design unchanged except for the target
+
+**Date:** 2026-09-28
+
+**Decision:** The same four models are applied to RV: expanding-mean baseline,
+lag-1, 20-day moving average and EWMA with λ = 0.94. Warm-up 30, relative MAE,
+the D-021 bootstrap. The test period is identical to v2a: 2023-10-24 to
+2026-09-21, 1,064 days. v2a and v2b results are reported side by side.
+
+**Alternatives:** Re-choosing models or parameters for the new target.
+
+**Why:** Holding everything else fixed means any difference between v2a and v2b
+can be attributed to the target alone.
+
+**Pre-registered expectation:** EWMA and the 20-day moving average have relative
+MAE clearly below 1, with intervals excluding 1. Lag-1 falls below 1 — a reversal
+from v2a — but stays worse than EWMA.
+
+---
+
 ## D-0NN · *(next decision goes here)*
