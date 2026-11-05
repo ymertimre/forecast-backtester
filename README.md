@@ -3,7 +3,11 @@
 A tool for evaluating time-series forecasting methods against a naive baseline,
 using walk-forward backtesting.
 
-**Status:** v1 complete — see [Findings](#findings).
+**Status:** closed — v1 and v2a complete. v2b, v3 and the TA app are in the backlog.
+
+- **v1** — price level: no method beats the naive baseline ([Findings](#findings))
+- **v2a** — volatility of daily returns: the direction is right, the improvement is not
+  significant ([v2a](#v2a--volatility))
 
 ---
 
@@ -87,15 +91,20 @@ rather than fetched at run time, so that every run reproduces the same numbers.
 ## Repository layout
 
 ```
-data/          frozen price snapshot
+data/              frozen snapshots: btc_daily.csv (v1, v2a), btc_hourly.csv (v2b, not run)
 src/
-  fetch.py     Binance API -> CSV (run once)
-  models.py    one function per forecasting method
-  backtest.py  the walk-forward loop
-  metrics.py   MAE, RMSE, directional accuracy, relative MAE
-  report.py    table and chart output
-tests/         unit tests for the metric functions
-run.py         entry point
+  fetch.py         Binance API -> daily CSV (run once)
+  fetch_hourly.py  Binance API -> hourly CSV, fixed window (run once)
+  models.py        v1 forecasting methods
+  volatility.py    v2 target series: |daily log return|
+  vol_models.py    v2 volatility methods
+  backtest.py      the walk-forward loop, shared by v1 and v2
+  metrics.py       MAE, RMSE, directional accuracy, relative MAE
+  uncertainty.py   paired moving-block bootstrap for relative MAE
+  report.py        table and chart output
+tests/             unit tests with hand-calculated expected values
+run.py             v1 entry point
+run_v2.py          v2a entry point
 ```
 
 ## How to run
@@ -108,7 +117,8 @@ python run.py
 ```
 
 `run.py` reads the committed snapshot, runs the walk-forward backtest, prints the
-results table and the per-year breakdown, and writes `output/predictions.png`.
+results table, the per-year breakdown and the bootstrap intervals, and writes
+`output/predictions.png`. `python run_v2.py` does the same for v2a.
 
 To regenerate the price snapshot from Binance:
 
@@ -119,7 +129,7 @@ python src/fetch.py
 Tests:
 
 ```bash
-pytest
+python -m pytest
 ```
 
 ## Findings
@@ -144,10 +154,11 @@ its error variance therefore follows from its weights alone, and can be derived
 without touching the data: 1.690 for the 7-day moving average, 1.309 for the
 7-day linear trend.
 
-The backtest produced 1.716 and 1.362. A 20-day moving-block bootstrap puts the
-95% intervals at [1.599, 1.828] and [1.306, 1.421] — both containing the derived
-value, though for the linear trend it sits close to the lower bound, so a small
-genuine excess cannot be ruled out.
+The backtest produced 1.716 and 1.362. A paired 20-day moving-block bootstrap
+(2,000 resamples, seed 42; D-021) puts the 95% intervals at [1.604, 1.831] and
+[1.307, 1.421] — both containing the derived value, though for the linear trend it
+sits just above the lower bound, so a small genuine excess cannot be ruled out.
+`python run.py` prints these intervals.
 
 The reading is not that these methods happened to perform badly on this series.
 It is that they lose by the amount the random-walk model requires, and the series
@@ -176,8 +187,8 @@ direction, so the metric is undefined for it rather than failed (D-013).
 Absolute error varies several-fold across these years as the price level and
 volatility change. The ratios do not: they stay inside a ±5% band. The moving
 average's 2025 figure is 9% below its 2024 figure, but the bootstrap intervals
-for the two years overlap heavily, so that gap is sampling variation rather than
-a regime effect.
+for the two years overlap heavily (2024: [1.604, 1.988], 2025: [1.477, 1.812]),
+so that gap is sampling variation rather than a regime effect.
 
 ### A near-zero bias is not accuracy
 
@@ -203,9 +214,72 @@ good model; here it only says the errors are symmetric.
 - The result is about *these* methods. It is evidence that the series is close to
   a random walk, not proof that no method can beat the baseline.
 
+## v2a — Volatility
+
+v1 asked whether the *price level* can be forecast and found that it cannot. If
+the tool only ever said "no", that would say little about the tool. Volatility is
+the textbook counter-case: it clusters, so calm days tend to follow calm days and
+turbulent days follow turbulent ones. v2a points the same framework at it.
+
+### Design
+
+Fixed before the result was seen (D-017 to D-020):
+
+- **Target:** `|r_t|`, the absolute daily log return — scale-free, unlike a dollar
+  range.
+- **Baseline:** the expanding-window mean of `|r|`, i.e. "volatility is a constant
+  long-run level". Yesterday's value is *not* the baseline here: repeating it
+  already assumes persistence, so it is a competing model.
+- **Competing models**, all averaging `|r|` itself and differing only in memory:
+  lag-1, a 20-day moving average, and an EWMA with λ = 0.94 (the RiskMetrics
+  convention, fixed rather than searched).
+- Same walk-forward loop, warm-up and headline metric as v1: relative MAE, with a
+  paired moving-block bootstrap for the interval (D-021).
+
+`run_backtest` and the metric functions were reused without a single change: v2a
+needed only a new series and a new dictionary of models.
+
+### Result
+
+1,064 test days, 24 October 2023 to 21 September 2026.
+
+| Model | MAE | Relative MAE | 95% interval |
+|---|---|---|---|
+| Expanding mean (baseline) | 0.012775 | 1.000 | — |
+| Lag-1 | 0.016272 | 1.274 | [1.200, 1.336] |
+| 20-day moving average | 0.012675 | 0.992 | [0.950, 1.031] |
+| EWMA (λ = 0.94) | 0.012476 | 0.977 | [0.941, 1.008] |
+
+**The ranking is the expected one, and the improvement is not significant.**
+
+- Lag-1 is clearly worse than the baseline: a single day's `|r|` is too noisy to
+  carry forward. The tool does separate methods.
+- EWMA and the moving average point the right way, 2.3% and 0.8% better, but both
+  intervals contain 1. With this target, this metric and three years of data, the
+  improvement cannot be told apart from zero.
+- The result is reported as computed (D-022). The metric, λ, the window, the
+  confidence level and the period were not adjusted after seeing it.
+
+### Why the improvement is small
+
+`|r_t| = σ_t · |z_t|`: even a perfect forecast of the underlying volatility σ
+cannot predict the day's random draw `|z_t|`, and that unpredictable part makes up
+most of every model's error — in the numerator and the denominator alike. It
+squeezes every ratio towards 1. This was recorded as a known limitation before the
+run (D-020); it is also the standard finding of Andersen & Bollerslev (1998), who
+showed that volatility models judged against daily returns look poor and the same
+models judged against intraday realized volatility look clearly accurate.
+
+### Not done: v2b
+
+The natural next step — the same design with daily realized volatility from hourly
+data as the target — is fully pre-registered (D-023, D-024) and its data snapshot
+is committed (`data/btc_hourly.csv`, all structural checks passed), but it has not
+been run. The project was closed before it (D-025).
+
 ## Scope
 
-Built for version 1:
+Built for version 1 (v2a reuses the same scope with a volatility target):
 
 - One asset (BTC), daily granularity, three years of history
 - One-day-ahead forecasts

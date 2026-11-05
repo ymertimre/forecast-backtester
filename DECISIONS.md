@@ -439,4 +439,25 @@ from v2a — but stays worse than EWMA.
 
 ---
 
+## D-025 · The project is closed after v2a; v2b, v3 and the TA app go to the backlog
+
+**Date:** 2026-11-05
+
+**Decision:** forecast-backtester is closed with v1 and v2a complete. v2b (the
+realized-volatility target), v3 (the time-horizon study) and the technical-analysis
+app move to the backlog. The v2b pre-registration (D-023, D-024) and its hourly
+snapshot stay in the repository unchanged, so v2b can be run later exactly as
+specified.
+
+**Alternatives:** Running v2b before closing.
+
+**Why:** The work this repository was built to show is done: a walk-forward
+framework that enforces no lookahead, a negative result on price levels explained
+by the random-walk expectation, a reproducible bootstrap, and a second target run
+through the same code without changing it. Further stages add research depth but
+no new capability, and the time is better spent elsewhere. No v2b result has been
+computed, so closing now does not select between outcomes.
+
+---
+
 ## D-0NN · *(next decision goes here)*
